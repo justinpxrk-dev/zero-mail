@@ -5,6 +5,7 @@
 | **Language**             | TypeScript (run via `tsx` in dev)                                                                                |
 | **Env loading**          | Node `--env-file`                                                                                                |
 | **Repo**                 | pnpm monorepo — `apps/web`, `packages/core`                                                                      |
+| **Testing**              | Vitest                                                                                                           |
 | **Web framework**        | Next.js (App Router)                                                                                             |
 | **Styling**              | Tailwind CSS                                                                                                     |
 | **UI components**        | shadcn/ui (Radix primitives, components copied into repo)                                                        |
