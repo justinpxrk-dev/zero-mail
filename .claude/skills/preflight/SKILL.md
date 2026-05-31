@@ -1,11 +1,11 @@
 ---
 name: preflight
-description: Run format, lint, typecheck, build, and scan docs for staleness — the full pre-commit check. Use when the user wants to "preflight", "verify", or confirm the working tree is ready to commit. Automatically invoked by /commit.
+description: Run format, lint, typecheck, build, test, and scan docs for staleness — the full pre-commit check. Use when the user wants to "preflight", "verify", or confirm the working tree is ready to commit. Automatically invoked by /commit.
 ---
 
 # Preflight — pre-commit verification
 
-Run formatting / linting / typecheck / build, then scan documentation for staleness so a commit goes out clean.
+Run formatting / linting / typecheck / build / test, then scan documentation for staleness so a commit goes out clean.
 
 ## Steps
 
@@ -15,7 +15,7 @@ Run in order. Stop on the first failure and surface the error verbatim.
 2. **Lint** — `pnpm lint`. If it fails with auto-fixable issues, suggest `pnpm lint:fix` and ask before running it.
 3. **Typecheck** — `pnpm typecheck`. Only runs `tsc` against `@zero/core`; `apps/web` is type-checked by `next build` in the next step (running `tsc` against web pre-build fails on missing gitignored `next-env.d.ts` / `.next/types/*`).
 4. **Build** — `pnpm build`.
-5. **Tests** — _(none configured yet; add here once a test runner is in place)_.
+5. **Tests** — `pnpm test`.
 6. **Documentation scan.** Compare `git status --short` and `git diff` against docs that could now be out of date:
    - `CLAUDE.md` — project structure, conventions
    - `docs/architecture/*.md` — overview, scenarios, tech-stack

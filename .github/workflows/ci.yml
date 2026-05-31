@@ -42,3 +42,6 @@ jobs:
           # the dummy just keeps the build log clean.
           DATABASE_URL: postgres://ci-build-only:not-a-real-password@localhost:5432/not-a-real-db
           BETTER_AUTH_SECRET: ci-build-only-not-a-real-secret
+
+      - name: Test
+        run: pnpm test
