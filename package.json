@@ -16,6 +16,7 @@
     "lint:fix": "eslint . --fix && markdownlint-cli2 --fix",
     "typecheck": "pnpm --filter @zero/core typecheck",
     "build": "pnpm -r build",
+    "test": "vitest run",
     "db:generate": "pnpm --filter @zero/web db:generate",
     "db:migrate": "pnpm --filter @zero/web db:migrate",
     "db:push": "pnpm --filter @zero/web db:push",
@@ -33,6 +34,7 @@
     "markdownlint-cli2": "^0.22.1",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.7"
   }
 }
