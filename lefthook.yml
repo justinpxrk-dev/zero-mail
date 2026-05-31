@@ -7,3 +7,5 @@ pre-commit:
       run: mise exec -- pnpm lint
     typecheck:
       run: mise exec -- pnpm typecheck
+    test:
+      run: mise exec -- pnpm test
