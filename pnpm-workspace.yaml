@@ -4,6 +4,7 @@ packages:
 allowBuilds:
   esbuild: true
   sharp: true
+  unrs-resolver: true
 overrides:
   postcss@<8.5.10: ">=8.5.10"
   esbuild@<0.25.0: ">=0.25.0"
