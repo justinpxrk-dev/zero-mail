@@ -18,6 +18,6 @@ The five flows to build.
 
 Stand up the test harness now that the first real flow (sign-up) has landed.
 
-- [ ] **Framework** — add Vitest (workspace config + root `test` script).
-- [ ] **CI** — run `pnpm test` in CI and the lefthook pre-commit hook.
-- [ ] **Unit tests: `ensureGmailWatch`** — cover the skip / success / retry / give-up branches.
+- [x] **Framework** — add Jest via next/jest (jsdom + Testing Library, root `test` script).
+- [x] **CI** — run `pnpm test` in CI and the lefthook pre-commit hook.
+- [x] **Unit tests: `ensureGmailWatch`** — cover the skip / success / retry / give-up branches.
