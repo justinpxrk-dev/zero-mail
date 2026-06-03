@@ -27,65 +27,77 @@ globalThis.fetch = fetch;
 
 /** Fixtures */
 // Inputs
-const ENSURE_GMAIL_WATCH_PARAMS = { accountId: "account-1", googleAccountId: "google-account-1", userId: "user-1" };
-const ENV_GMAIL_PUBSUB_TOPIC = "GMAIL_PUBSUB_TOPIC";
-const GMAIL_PUBSUB_TOPIC = "projects/zero/topics/mailbox";
+const ENSURE_GMAIL_WATCH_MOCK_PARAM = {
+  accountId: "account-1",
+  googleAccountId: "google-account-1",
+  userId: "user-1",
+};
+const ENV_MOCK_GMAIL_PUBSUB_TOPIC_KEY = "GMAIL_PUBSUB_TOPIC";
+const ENV_MOCK_GMAIL_PUBSUB_TOPIC_VALUE = "projects/project/topics/topic";
 // Responses
-const GET_ACCESS_TOKEN_RESPONSE = { accessToken: "access-token" };
-const GET_ACCESS_TOKEN_ERROR = new Error("token unavailable");
-const FETCH_OK_BODY = { historyId: "42", expiration: "1700000000000" };
+const GET_ACCESS_TOKEN_MOCK_RESPONSE = { accessToken: "access-token" };
+const GET_ACCESS_TOKEN_MOCK_ERROR = new Error("token unavailable");
+const FETCH_MOCK_RESPONSE_OK_BODY = { historyId: "42", expiration: "1700000000000" };
 // Gmail returns `expiration` as int64-as-string; WATCH_EXPIRATION is the parsed
 // Date we expect persisted.
-const WATCH_EXPIRATION = new Date(Number(FETCH_OK_BODY.expiration));
+const FETCH_MOCK_RESPONSE_OK_BODY_WATCH_EXPIRATION_DATE = new Date(Number(FETCH_MOCK_RESPONSE_OK_BODY.expiration));
 // 503 is retried; 403 (like other 4xx) fails fast.
-const FETCH_RETRYABLE_ERROR = { status: 503, body: "Service Unavailable" };
-const FETCH_NON_RETRYABLE_ERROR = { status: 403, body: "Forbidden" };
+const FETCH_MOCK_ERROR_RETRYABLE = { status: 503, body: "Service Unavailable" };
+const FETCH_MOCK_ERROR_NON_RETRYABLE = { status: 403, body: "Forbidden" };
 // Expected call args
-const GET_ACCESS_TOKEN_PARAMS = {
+const GET_ACCESS_TOKEN_MOCK_PARAM = {
   body: {
     providerId: "google",
-    accountId: ENSURE_GMAIL_WATCH_PARAMS.googleAccountId,
-    userId: ENSURE_GMAIL_WATCH_PARAMS.userId,
+    accountId: ENSURE_GMAIL_WATCH_MOCK_PARAM.googleAccountId,
+    userId: ENSURE_GMAIL_WATCH_MOCK_PARAM.userId,
   },
 };
-const FETCH_PARAM_WATCH_URL = "https://gmail.googleapis.com/gmail/v1/users/me/watch";
-const FETCH_PARAM_WATCH_OPTIONS = {
+const FETCH_MOCK_PARAM_WATCH_URL = "https://gmail.googleapis.com/gmail/v1/users/me/watch";
+const FETCH_MOCK_PARAM_WATCH_OPTIONS = {
   method: "POST",
-  headers: { Authorization: `Bearer ${GET_ACCESS_TOKEN_RESPONSE.accessToken}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ topicName: GMAIL_PUBSUB_TOPIC, labelIds: ["INBOX"], labelFilterBehavior: "INCLUDE" }),
+  headers: {
+    Authorization: `Bearer ${GET_ACCESS_TOKEN_MOCK_RESPONSE.accessToken}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    topicName: ENV_MOCK_GMAIL_PUBSUB_TOPIC_VALUE,
+    labelIds: ["INBOX"],
+    labelFilterBehavior: "INCLUDE",
+  }),
 };
-const WATCH_RECORD = {
-  historyId: FETCH_OK_BODY.historyId,
-  expiration: WATCH_EXPIRATION,
-  topicName: GMAIL_PUBSUB_TOPIC,
+const DB_MOCK_GMAIL_WATCH_RECORD = {
+  historyId: FETCH_MOCK_RESPONSE_OK_BODY.historyId,
+  expiration: FETCH_MOCK_RESPONSE_OK_BODY_WATCH_EXPIRATION_DATE,
+  topicName: ENV_MOCK_GMAIL_PUBSUB_TOPIC_VALUE,
 };
 // Backoff sleeps between the 3 attempts (jest mock.calls shape)
-const SLEEP_PARAMS = [[500], [1000]];
+const SLEEP_MOCK_PARAMS = [[500], [1000]];
 
-const FETCH_OK_RESPONSE = () => ({
+const FETCH_MOCK_RESPONSE_OK = () => ({
   ok: true,
-  json: () => Promise.resolve(FETCH_OK_BODY),
+  json: () => Promise.resolve(FETCH_MOCK_RESPONSE_OK_BODY),
 });
-// A fetch Response stub for a non-OK status (only `ok`/`status`/`text` are read).
-const errorResponse =
+// A fetch Response stub for a non-OK status (only `ok`/`status`/`text` are
+// read).
+const buildErrorResponse =
   ({ status, body }: { status: number; body: string }) =>
   () => ({
     ok: false,
     status,
     text: () => Promise.resolve(body),
   });
-const FETCH_RETRYABLE_RESPONSE = errorResponse(FETCH_RETRYABLE_ERROR);
-const FETCH_NON_RETRYABLE_RESPONSE = errorResponse(FETCH_NON_RETRYABLE_ERROR);
+const FETCH_MOCK_RESPONSE_RETRYABLE = buildErrorResponse(FETCH_MOCK_ERROR_RETRYABLE);
+const FETCH_MOCK_RESPONSE_NON_RETRYABLE = buildErrorResponse(FETCH_MOCK_ERROR_NON_RETRYABLE);
 
 /** Tests */
 // Per-test setup; mock state is reset via the jest config, env via afterEach
 beforeEach(() => {
-  process.env[ENV_GMAIL_PUBSUB_TOPIC] = GMAIL_PUBSUB_TOPIC;
+  process.env[ENV_MOCK_GMAIL_PUBSUB_TOPIC_KEY] = ENV_MOCK_GMAIL_PUBSUB_TOPIC_VALUE;
 
   insert.mockReturnValue({ values });
   values.mockReturnValue({ onConflictDoUpdate });
   onConflictDoUpdate.mockResolvedValue(undefined);
-  getAccessToken.mockResolvedValue(GET_ACCESS_TOKEN_RESPONSE);
+  getAccessToken.mockResolvedValue(GET_ACCESS_TOKEN_MOCK_RESPONSE);
   sleepMock.mockResolvedValue(undefined);
 
   // Silence the watch's logging; we assert behavior, not console output.
@@ -94,14 +106,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  Reflect.deleteProperty(process.env, ENV_GMAIL_PUBSUB_TOPIC);
+  Reflect.deleteProperty(process.env, ENV_MOCK_GMAIL_PUBSUB_TOPIC_KEY);
 });
 
 describe("ensureGmailWatch", () => {
-  it(`skips (touching nothing) when ${ENV_GMAIL_PUBSUB_TOPIC} is unset`, async () => {
-    Reflect.deleteProperty(process.env, ENV_GMAIL_PUBSUB_TOPIC);
+  it(`skips (touching nothing) when ${ENV_MOCK_GMAIL_PUBSUB_TOPIC_KEY} is unset`, async () => {
+    Reflect.deleteProperty(process.env, ENV_MOCK_GMAIL_PUBSUB_TOPIC_KEY);
 
-    await ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS);
+    await ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM);
 
     expect(getAccessToken).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
@@ -109,46 +121,49 @@ describe("ensureGmailWatch", () => {
   });
 
   it("registers the watch and upserts the row on success", async () => {
-    fetch.mockResolvedValue(FETCH_OK_RESPONSE());
+    fetch.mockResolvedValue(FETCH_MOCK_RESPONSE_OK());
 
-    await ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS);
+    await ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM);
 
     expect(getAccessToken).toHaveBeenCalledTimes(1);
-    expect(getAccessToken).toHaveBeenCalledWith(GET_ACCESS_TOKEN_PARAMS);
+    expect(getAccessToken).toHaveBeenCalledWith(GET_ACCESS_TOKEN_MOCK_PARAM);
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(FETCH_PARAM_WATCH_URL, FETCH_PARAM_WATCH_OPTIONS);
-    expect(values).toHaveBeenCalledWith({ accountId: ENSURE_GMAIL_WATCH_PARAMS.accountId, ...WATCH_RECORD });
-    expect(onConflictDoUpdate).toHaveBeenCalledWith({ target: gmailWatch.accountId, set: WATCH_RECORD });
+    expect(fetch).toHaveBeenCalledWith(FETCH_MOCK_PARAM_WATCH_URL, FETCH_MOCK_PARAM_WATCH_OPTIONS);
+    expect(values).toHaveBeenCalledWith({
+      accountId: ENSURE_GMAIL_WATCH_MOCK_PARAM.accountId,
+      ...DB_MOCK_GMAIL_WATCH_RECORD,
+    });
+    expect(onConflictDoUpdate).toHaveBeenCalledWith({ target: gmailWatch.accountId, set: DB_MOCK_GMAIL_WATCH_RECORD });
     expect(sleepMock).not.toHaveBeenCalled();
   });
 
   it("retries a retryable (5xx) response with backoff, then succeeds", async () => {
     fetch
-      .mockResolvedValueOnce(FETCH_RETRYABLE_RESPONSE())
-      .mockResolvedValueOnce(FETCH_RETRYABLE_RESPONSE())
-      .mockResolvedValueOnce(FETCH_OK_RESPONSE());
+      .mockResolvedValueOnce(FETCH_MOCK_RESPONSE_RETRYABLE())
+      .mockResolvedValueOnce(FETCH_MOCK_RESPONSE_RETRYABLE())
+      .mockResolvedValueOnce(FETCH_MOCK_RESPONSE_OK());
 
-    await ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS);
+    await ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM);
 
     expect(fetch).toHaveBeenCalledTimes(3);
-    expect(sleepMock.mock.calls).toEqual(SLEEP_PARAMS);
+    expect(sleepMock.mock.calls).toEqual(SLEEP_MOCK_PARAMS);
     expect(onConflictDoUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("gives up after 3 retryable failures without throwing", async () => {
-    fetch.mockResolvedValue(FETCH_RETRYABLE_RESPONSE());
+    fetch.mockResolvedValue(FETCH_MOCK_RESPONSE_RETRYABLE());
 
-    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
+    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM)).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenCalledTimes(3);
-    expect(sleepMock.mock.calls).toEqual(SLEEP_PARAMS);
+    expect(sleepMock.mock.calls).toEqual(SLEEP_MOCK_PARAMS);
     expect(insert).not.toHaveBeenCalled();
   });
 
   it("gives up immediately on a non-retryable (4xx) response, without retrying", async () => {
-    fetch.mockResolvedValue(FETCH_NON_RETRYABLE_RESPONSE());
+    fetch.mockResolvedValue(FETCH_MOCK_RESPONSE_NON_RETRYABLE());
 
-    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
+    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM)).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(sleepMock).not.toHaveBeenCalled();
@@ -156,14 +171,14 @@ describe("ensureGmailWatch", () => {
   });
 
   it("retries, then gives up, when the access-token fetch fails", async () => {
-    getAccessToken.mockRejectedValue(GET_ACCESS_TOKEN_ERROR);
+    getAccessToken.mockRejectedValue(GET_ACCESS_TOKEN_MOCK_ERROR);
 
-    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
+    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_MOCK_PARAM)).resolves.toBeUndefined();
 
     // The token is re-fetched each attempt.
     expect(getAccessToken).toHaveBeenCalledTimes(3);
     expect(fetch).not.toHaveBeenCalled();
-    expect(sleepMock.mock.calls).toEqual(SLEEP_PARAMS);
+    expect(sleepMock.mock.calls).toEqual(SLEEP_MOCK_PARAMS);
     expect(insert).not.toHaveBeenCalled();
   });
 });
