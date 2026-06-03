@@ -32,6 +32,7 @@ const ENV_GMAIL_PUBSUB_TOPIC = "GMAIL_PUBSUB_TOPIC";
 const GMAIL_PUBSUB_TOPIC = "projects/zero/topics/mailbox";
 // Responses
 const GET_ACCESS_TOKEN_RESPONSE = { accessToken: "access-token" };
+const GET_ACCESS_TOKEN_ERROR = new Error("token unavailable");
 const FETCH_OK_BODY = { historyId: "42", expiration: "1700000000000" };
 // Gmail returns `expiration` as int64-as-string; WATCH_EXPIRATION is the parsed
 // Date we expect persisted.
@@ -151,6 +152,18 @@ describe("ensureGmailWatch", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(sleepMock).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("retries, then gives up, when the access-token fetch fails", async () => {
+    getAccessToken.mockRejectedValue(GET_ACCESS_TOKEN_ERROR);
+
+    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
+
+    // The token is re-fetched each attempt.
+    expect(getAccessToken).toHaveBeenCalledTimes(3);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(sleepMock.mock.calls).toEqual(SLEEP_PARAMS);
     expect(insert).not.toHaveBeenCalled();
   });
 });
