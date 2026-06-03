@@ -36,7 +36,9 @@ const FETCH_OK_BODY = { historyId: "42", expiration: "1700000000000" };
 // Gmail returns `expiration` as int64-as-string; WATCH_EXPIRATION is the parsed
 // Date we expect persisted.
 const WATCH_EXPIRATION = new Date(Number(FETCH_OK_BODY.expiration));
-const FETCH_ERROR = { status: 503, body: "Service Unavailable" };
+// 503 is retried; 403 (like other 4xx) fails fast.
+const FETCH_RETRYABLE_ERROR = { status: 503, body: "Service Unavailable" };
+const FETCH_NON_RETRYABLE_ERROR = { status: 403, body: "Forbidden" };
 // Expected call args
 const GET_ACCESS_TOKEN_PARAMS = {
   body: {
@@ -63,11 +65,16 @@ const FETCH_OK_RESPONSE = () => ({
   ok: true,
   json: () => Promise.resolve(FETCH_OK_BODY),
 });
-const FETCH_ERROR_RESPONSE = () => ({
-  ok: false,
-  status: FETCH_ERROR.status,
-  text: () => Promise.resolve(FETCH_ERROR.body),
-});
+// A fetch Response stub for a non-OK status (only `ok`/`status`/`text` are read).
+const errorResponse =
+  ({ status, body }: { status: number; body: string }) =>
+  () => ({
+    ok: false,
+    status,
+    text: () => Promise.resolve(body),
+  });
+const FETCH_RETRYABLE_RESPONSE = errorResponse(FETCH_RETRYABLE_ERROR);
+const FETCH_NON_RETRYABLE_RESPONSE = errorResponse(FETCH_NON_RETRYABLE_ERROR);
 
 /** Tests */
 // Per-test setup; mock state is reset via the jest config, env via afterEach
@@ -114,10 +121,10 @@ describe("ensureGmailWatch", () => {
     expect(sleepMock).not.toHaveBeenCalled();
   });
 
-  it("retries a non-OK response with backoff 2 times, then succeeds", async () => {
+  it("retries a retryable (5xx) response with backoff, then succeeds", async () => {
     fetch
-      .mockResolvedValueOnce(FETCH_ERROR_RESPONSE())
-      .mockResolvedValueOnce(FETCH_ERROR_RESPONSE())
+      .mockResolvedValueOnce(FETCH_RETRYABLE_RESPONSE())
+      .mockResolvedValueOnce(FETCH_RETRYABLE_RESPONSE())
       .mockResolvedValueOnce(FETCH_OK_RESPONSE());
 
     await ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS);
@@ -127,13 +134,23 @@ describe("ensureGmailWatch", () => {
     expect(onConflictDoUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it("gives up after 3 attempts without throwing", async () => {
-    fetch.mockResolvedValue(FETCH_ERROR_RESPONSE());
+  it("gives up after 3 retryable failures without throwing", async () => {
+    fetch.mockResolvedValue(FETCH_RETRYABLE_RESPONSE());
 
     await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(sleepMock.mock.calls).toEqual(SLEEP_PARAMS);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("gives up immediately on a non-retryable (4xx) response, without retrying", async () => {
+    fetch.mockResolvedValue(FETCH_NON_RETRYABLE_RESPONSE());
+
+    await expect(ensureGmailWatch(ENSURE_GMAIL_WATCH_PARAMS)).resolves.toBeUndefined();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(sleepMock).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
   });
 });

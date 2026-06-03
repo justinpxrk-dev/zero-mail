@@ -22,13 +22,20 @@ type EnsureGmailWatchParams = {
  */
 const MAX_ATTEMPTS = 3;
 
+/** Transient HTTP statuses worth retrying: server errors. */
+function isRetryableStatus(status: number): boolean {
+  return status >= 500;
+}
+
 /**
  * Registers (or refreshes) a Gmail `users.watch` subscription so mailbox
  * changes are pushed to our Pub/Sub topic.
  *
- * Retries transient failures with backoff, but never throws to the caller —
- * failures are caught and logged. Sign-in must succeed even when the watch
- * can't be set up; the daily renewal cron is the backstop.
+ * Retries transient failures (network errors, 5xx) with backoff; a
+ * non-transient 4xx (bad token, missing scope, bad topic) gives up at once.
+ * Never throws to the caller — failures are caught and logged. Sign-in must
+ * succeed even when the watch can't be set up; the daily renewal cron is the
+ * backstop.
  */
 export async function ensureGmailWatch({ accountId, googleAccountId, userId }: EnsureGmailWatchParams): Promise<void> {
   const topicName = process.env["GMAIL_PUBSUB_TOPIC"];
@@ -54,7 +61,13 @@ export async function ensureGmailWatch({ accountId, googleAccountId, userId }: E
         body: JSON.stringify({ topicName, labelIds: ["INBOX"], labelFilterBehavior: "INCLUDE" }),
       });
       if (!res.ok) {
-        throw new Error(`gmail.users.watch ${res.status.toString()}: ${await res.text()}`);
+        const error = new Error(`gmail.users.watch ${res.status.toString()}: ${await res.text()}`);
+        if (!isRetryableStatus(res.status)) {
+          // A 4xx won't fix itself on retry — give up immediately.
+          console.error("[gmail-watch] gmail.users.watch failed (non-retryable):", error);
+          return;
+        }
+        throw error;
       }
 
       const { historyId, expiration } = (await res.json()) as { historyId: string; expiration: string };
