@@ -1,6 +1,6 @@
 # Overview
 
-`zero` triages a user's Gmail inbox using an LLM. Users sign in with Google, Gmail pushes mailbox-change notifications to the app, the app extracts a structured action (info / task / event) per message via Gemini, and surfaces them in a Next.js UI.
+`zero` triages a user's Gmail inbox using an LLM. Users sign in with Google, Gmail pushes mailbox-change notifications to the app, the app extracts a structured action (info / task / event / notification) per message via Gemini, and surfaces them in a Next.js UI.
 
 ## Components
 
@@ -25,7 +25,7 @@ flowchart LR
   Web -->|messages.get| Gmail
   Gmail -->|message body| Web
   Web -->|extract: message body| Gemini[Gemini API]
-  Gemini -->|structured action JSON<br/>info / task / event| Web
+  Gemini -->|structured action JSON<br/>info / task / event / notification| Web
   Web <-->|sessions, tokens,<br/>emails, extractions| DB[(Neon Postgres)]
   Cron[Vercel daily cron] -->|renew users.watch| Web
 ```

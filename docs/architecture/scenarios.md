@@ -48,7 +48,7 @@ sequenceDiagram
   Web->>Gmail: messages.get (new messages)
   Gmail-->>Web: Message bodies
   Web->>Gemini: Extract action from message
-  Gemini-->>Web: Structured action JSON (info / task / event)
+  Gemini-->>Web: Structured action JSON (info / task / event / notification)
   Web->>DB: Store email + extraction
   Web-->>PubSub: 200 OK (ack)
 ```
