@@ -21,6 +21,6 @@ Architectural decisions still to make. Entries get deleted as they're resolved i
 
 ## Product behavior
 
-- **Surfacing in UI.** How does the user see extractions — a unified action queue across all messages, a per-thread overlay in an inbox view, or grouped by type (info / task / event)? Drives the main UI layout.
+- **Surfacing in UI.** How does the user see extractions — a unified action queue across all messages, a per-thread overlay in an inbox view, or grouped by type (info / task / event / notification)? Drives the main UI layout.
 - **Write-back to Gmail.** Does triage mutate the Gmail mailbox (apply labels, archive, mark read) or stay read-only? Affects required OAuth scopes (`gmail.modify` vs `gmail.readonly`) and changes the consent screen story.
 - **"Done" semantics for an action.** What marks an extraction as resolved — user dismisses it, the underlying email is archived, the linked Calendar event / Task is created, or all of the above? Determines the action record's state machine.
