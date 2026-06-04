@@ -1,0 +1,5 @@
+project:
+  name: zero-mail
+  tz: America/New_York
+  adrFolder: ./docs/architecture/decisions
+  packages: []

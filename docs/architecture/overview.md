@@ -34,3 +34,4 @@ flowchart LR
 
 - [Scenarios](./scenarios.md) — sequence diagrams for sign-in, mail ingestion, and watch renewal
 - [Tech stack](./tech-stack.md) — concrete tech choices and hosting
+- [Decisions](./decisions/) — architecture decision records (ADRs), managed with log4brains
