@@ -10,7 +10,11 @@ The five flows to build.
   - [x] Claude context
   - [x] Claude skills
 - [x] **Sign-up flow** — Better Auth Google OAuth → store refresh token in `account` → call `users.watch` first-time, store returned `historyId`.
-- [ ] **New mail** — Pub/Sub push at `/api/gmail/push` → validate auth → `users.history.list` since stored `historyId` → `users.messages.get` per new message → Gemini extraction → write email + extraction to DB → update stored `historyId`. Same path in dev, exposed via a tunnel (see README).
+- [ ] **New mail** — Pub/Sub push at `/api/gmail/push` ingests changed messages, extracts an action per message, and persists. Same path in dev, exposed via a tunnel (see README).
+  - [ ] **DB schema** — add `email` + `extraction` tables (+ migration).
+  - [ ] **Gemini client** — extraction client + `info` / `task` / `event` action types in `packages/core`.
+  - [ ] **Gmail ingestion lib** — `users.history.list` since stored `historyId` → `users.messages.get` per new message → parse the message body.
+  - [ ] **Push handler** — `/api/gmail/push`: validate Pub/Sub auth → orchestrate ingestion + extraction → write email + extraction → advance stored `historyId`.
 - [ ] **User views inbox** — `/app` Server Component reads emails + extractions from Postgres for signed-in user → renders triaged list.
 - [ ] **Watch renewal** — daily Vercel cron at `/api/cron/renew-watches` re-issues `users.watch` per active user, updates expiry in DB. Gmail watches expire after ~7 days.
 
