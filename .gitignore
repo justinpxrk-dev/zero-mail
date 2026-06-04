@@ -1,6 +1,7 @@
 .claude/worktrees
 .DS_Store
 .env
+.log4brains
 .next
 .obsidian
 *.tsbuildinfo
