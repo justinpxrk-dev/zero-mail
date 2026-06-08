@@ -23,34 +23,60 @@ Install `node` dependencies.
 pnpm install
 ```
 
-Start the dev server.
-
-```sh
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Database (local)
-
-Postgres runs locally via Docker:
-
-```sh
-docker compose up -d db
-```
-
-Copy the env example and set `DATABASE_URL` to the container:
+Copy the env example and fill it in:
 
 ```sh
 cp apps/web/.env.example apps/web/.env
-# apps/web/.env -> DATABASE_URL=postgres://zero:zero@localhost:5432/zero
 ```
 
-Apply migrations (and optionally open the Drizzle Studio GUI):
+| Key                                         | What it's for                                                                                                                                                                                                               |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Postgres connection for the app and Drizzle migrations — point it at the local container: `postgres://zero:zero@localhost:5432/zero`.                                                                                       |
+| `BETTER_AUTH_SECRET`                        | Signs Better Auth sessions and cookies; sign-in fails without it. Generate one with `openssl rand -base64 32`.                                                                                                              |
+| `BETTER_AUTH_URL`                           | The app's base URL — `http://localhost:3000` for local dev.                                                                                                                                                                 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth client behind "Sign in with Google" and Gmail access (GCP Console → APIs & Services → Credentials).                                                                                                            |
+| `GMAIL_PUBSUB_TOPIC`                        | Topic Gmail publishes mailbox changes to for `users.watch`. Optional locally — left unset, watch registration is skipped with a warning and the rest of the app still runs. Format: `projects/<project-id>/topics/<topic>`. |
+
+`DATABASE_URL` and the Better Auth keys are needed for the app to boot; the Google OAuth client is needed before sign-in works.
+
+### Local dev stack
+
+[process-compose](https://f1bonacc1.github.io/process-compose/) brings up the whole stack in dependency order — Postgres (via Docker), database migrations, then the Next.js dev server:
 
 ```sh
-pnpm db:migrate
-pnpm db:studio
+process-compose up
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. Quit with `q` (or `Ctrl-C`) to stop the dev server and the Postgres container.
+
+| Process   | Command                | Starts after       |
+| --------- | ---------------------- | ------------------ |
+| `db`      | `docker compose up db` | —                  |
+| `migrate` | `pnpm db:migrate`      | `db` is healthy    |
+| `web`     | `pnpm dev`             | `migrate` succeeds |
+
+Or start it detached, so the stack keeps running in the background after you close the terminal:
+
+```sh
+process-compose up -D
+```
+
+Attach the TUI to the running stack with `process-compose attach` (quit the TUI with `q` — the stack keeps running), list process states without the TUI via `process-compose list`, follow a process's logs with `process-compose process logs web -f`, and stop everything with `process-compose down`.
+
+To run a single piece by hand: `docker compose up -d db`, `pnpm db:migrate`, `pnpm db:studio` (Drizzle Studio GUI), or `pnpm dev`.
+
+### Checks
+
+Run the full check suite — format, lint, typecheck, build, test (the same flow as CI):
+
+```sh
+pnpm check
+```
+
+Auto-fix the fixable parts (formatting and lint):
+
+```sh
+pnpm fix
 ```
 
 ### Receiving Gmail push notifications locally

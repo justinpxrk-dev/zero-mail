@@ -9,6 +9,8 @@
   "scripts": {
     "prepare": "if [ -d .git ]; then lefthook install; fi",
     "dev": "pnpm --filter @zero/web dev",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test",
+    "fix": "pnpm lint:fix && pnpm format",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . && markdownlint-cli2",
