@@ -1,0 +1,28 @@
+version: "0.5"
+
+# Local dev stack — `process-compose up` starts these in dependency order:
+# Postgres (via docker compose) -> migrations -> the Next.js dev server.
+processes:
+  db:
+    command: docker compose up db
+    readiness_probe:
+      exec:
+        command: docker compose exec -T db pg_isready -U zero -d zero
+      initial_delay_seconds: 3
+      period_seconds: 2
+      timeout_seconds: 5
+      failure_threshold: 30
+
+  migrate:
+    command: pnpm db:migrate
+    depends_on:
+      db:
+        condition: process_healthy
+    availability:
+      restart: "no"
+
+  web:
+    command: pnpm dev
+    depends_on:
+      migrate:
+        condition: process_completed_successfully
